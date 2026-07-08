@@ -93,7 +93,7 @@ const Pure3DBackground: React.FC = () => {
 
           if (dist < (window.innerWidth < 768 ? 75 : 110)) {
             const alpha = (1 - dist / (window.innerWidth < 768 ? 75 : 110)) * projectedPoints[i].opacity * 0.25;
-            -ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.beginPath();
             ctx.moveTo(projectedPoints[i].x, projectedPoints[i].y);
             ctx.lineTo(projectedPoints[j].x, projectedPoints[j].y);
