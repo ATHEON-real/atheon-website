@@ -1,85 +1,146 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { MeshTransmissionMaterial, Float, Environment } from '@react-three/drei';
-import * as THREE from 'three';
 
-interface InteractiveMeshProps {
-  isMobile: boolean;
-}
-
-// --- 1. THE REFINED 3D INTERACTIVE MESH COMPONENT ---
-const InteractiveMesh: React.FC<InteractiveMeshProps> = ({ isMobile }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const { viewport } = useThree();
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
+// --- 1. PURE NATIVE HTML5 3D CANVAS INTERACTIVE MATRIX ---
+const Pure3DBackground: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
 
   useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      setMouse({
-        x: (event.clientX / window.innerWidth) * 2 - 1,
-        y: -(event.clientY / window.innerHeight) * 2 + 1,
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    // Generate fixed 3D mathematical nodes
+    const numPoints = window.innerWidth < 768 ? 40 : 90;
+    const points: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < numPoints; i++) {
+      const theta = Math.acos(Math.random() * 2 - 1);
+      const phi = Math.random() * Math.PI * 2;
+      const radius = 220; // Size of the 3D core
+      points.push({
+        x: radius * Math.sin(theta) * Math.cos(phi),
+        y: radius * Math.sin(theta) * Math.sin(phi),
+        z: radius * Math.cos(theta),
       });
+    }
+
+    // Track mouse coordinates
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseRef.current.targetX = (e.clientX - window.innerWidth / 2) * 0.005;
+      mouseRef.current.targetY = (e.clientY - window.innerHeight / 2) * 0.005;
     };
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('resize', handleResize);
+
+    // Core 3D Rotation Angles
+    let angleX = 0.002;
+    let angleY = 0.003;
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Smooth interpolation for mouse tracking
+      mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
+      mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
+
+      const currentAngleX = angleX + mouseRef.current.y * 0.01;
+      const currentAngleY = angleY + mouseRef.current.x * 0.01;
+
+      const cosX = Math.cos(currentAngleX);
+      const sinX = Math.sin(currentAngleX);
+      const cosY = Math.cos(currentAngleY);
+      const sinY = Math.sin(currentAngleY);
+
+      // Project 3D Space Coordinates cleanly onto a 2D viewport Matrix
+      const projectedPoints = points.map((p) => {
+        // Rotate X
+        let y1 = p.y * cosX - p.z * sinX;
+        let z1 = p.y * sinX + p.z * cosX;
+        // Rotate Y
+        let x2 = p.x * cosY + z1 * sinY;
+        let z2 = -p.x * sinY + z1 * cosY;
+
+        // Perspective projection scalar
+        const perspective = 500 / (500 + z2);
+        return {
+          x: x2 * perspective + width / 2,
+          y: y1 * perspective + height / 2,
+          opacity: (500 - z2) / 700, // Depth shading maps
+        };
+      });
+
+      // Draw spatial matrix connection vectors
+      ctx.lineWidth = 0.6;
+      for (let i = 0; i < projectedPoints.length; i++) {
+        for (let j = i + 1; j < projectedPoints.length; j++) {
+          const dist = Math.hypot(
+            projectedPoints[i].x - projectedPoints[j].x,
+            projectedPoints[i].y - projectedPoints[j].y
+          );
+
+          if (dist < (window.innerWidth < 768 ? 75 : 110)) {
+            const alpha = (1 - dist / (window.innerWidth < 768 ? 75 : 110)) * projectedPoints[i].opacity * 0.25;
+            ctx.strokeStyle = rgba(255, 255, 255, ${alpha});
+            ctx.beginPath();
+            ctx.moveTo(projectedPoints[i].x, projectedPoints[i].y);
+            ctx.lineTo(projectedPoints[j].x, projectedPoints[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Render nodes
+      projectedPoints.forEach((p) => {
+        ctx.fillStyle = rgba(255, 255, 255, ${p.opacity * 0.6});
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Slowly drift baseline core rotations
+      angleX += 0.001;
+      angleY += 0.0015;
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
-  useFrame(() => {
-    if (!meshRef.current) return;
-    meshRef.current.rotation.x += 0.0015;
-    meshRef.current.rotation.y += 0.0025;
-
-    const targetX = (mouse.x * viewport.width) * 0.12;
-    const targetY = (mouse.y * viewport.height) * 0.12;
-    
-    meshRef.current.position.x += (targetX - meshRef.current.position.x) * 0.05;
-    meshRef.current.position.y += (targetY - meshRef.current.position.y) * 0.05;
-  });
-
-  return (
-    <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8}>
-      <mesh ref={meshRef} scale={isMobile ? 1.2 : 2.2}>
-        <torusKnotGeometry args={[1, 0.32, 200, 16, 3, 4]} />
-        <MeshTransmissionMaterial
-          backside
-          samples={4}
-          thickness={0.25}
-          chromaticAberration={0.06}
-          anisotropy={0.2}
-          distortion={0.25}
-          distortionScale={0.15}
-          temporalDistortion={0.1}
-          clearcoat={1}
-          attenuationDistance={0.4}
-          attenuationColor="#ffffff"
-          color="#f8fafc"
-        />
-      </mesh>
-    </Float>
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none z-0 bg-transparent" />;
 };
 
-// --- 2. MASTER ROUTE LAYOUT SHELL ---
+// --- 2. MASTER SITE FRAME CONTAINER ---
 function RootLayout() {
-  const [isMobile, setIsMobile] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
   const acronymData = [
     { letter: 'A', word: 'Aesthetic', desc: 'Prioritizing pure, minimalist structural beauty.' },
     { letter: 'T', word: 'Technology', desc: 'Engineered with clean, performance-first frameworks.' },
     { letter: 'H', word: 'Harmony', desc: 'Balancing structural layouts with negative space.' },
-    { letter: 'E', word: 'Evolution', desc: 'Continuously refining identity through iterative design.' },
+    { letter: 'E', word: 'Evolution', desc: 'Continuously refining identity through innovative design.' },
     { letter: 'O', word: 'Order', desc: 'Mathematical precision mapped out across the screen.' },
     { letter: 'N', word: 'Nexus', desc: 'The central connection point of the digital experience.' }
   ];
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   useEffect(() => {
     if (!isDismissed) {
@@ -95,14 +156,14 @@ function RootLayout() {
   return (
     <div className="relative min-h-screen bg-black text-white w-full overflow-x-hidden">
       
-      {/* ─── INTRO SPLASH OVERLAY ─── */}
+      {/* ─── INTRO SPLASH OVERLAY PANEL ─── */}
       <div 
         className={`fixed inset-0 w-full h-full min-h-screen bg-black flex flex-col justify-between p-6 md:p-16 z-50 transition-all duration-1000 ease-in-out select-none
-          ${isDismissed ? 'opacity-0 pointer-events-none scale-105' : 'opacity-100'}`}
+          ${isDismissed ? 'opacity-0 pointer-events-none scale-105 invisible' : 'opacity-100'}`}
       >
         <div className="w-full flex justify-between items-center border-b border-white/10 pb-4 font-mono text-[10px] tracking-widest text-white/40">
-          <span>SYSTEM RUNTIME // CORE</span>
-          <span>ATHEON PROTOCOL OVERLAY</span>
+          <span>SYSTEM RUNTIME // ENGINE V2</span>
+          <span>ATHEON CORE INITIALIZATION</span>
         </div>
 
         <div className="max-w-5xl mx-auto w-full my-auto py-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -112,7 +173,7 @@ function RootLayout() {
             </h1>
             <p className="text-white/40 text-xs mt-4 font-light max-w-sm leading-relaxed font-mono">
               [ Conceptual Architecture Interface ] <br />
-              Move your cursor or tilt your device to interface with the 3D structural core background.
+              Move your cursor across the visual matrix to warp the background structural grid network.
             </p>
           </div>
 
@@ -143,23 +204,14 @@ function RootLayout() {
             <span className="relative z-10 font-bold">Initialize Experience</span>
             <div className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0" />
           </button>
-          <span className="text-white/20 text-[9px] uppercase font-mono tracking-widest animate-pulse">Click to bypass initialization terminal</span>
+          <span className="text-white/20 text-[9px] uppercase font-mono tracking-widest animate-pulse">Click to enter interface shell</span>
         </div>
       </div>
 
-      {/* ─── PERSISTENT 3D BACKGROUND LAYER ─── */}
-      <div className="fixed inset-0 w-full h-full pointer-events-none overflow-hidden z-0 bg-transparent select-none">
-        <Canvas camera={{ position: [0, 0, 5], fov: 45 }} gl={{ antialias: true, alpha: true }}>
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[10, 10, 5]} intensity={1.5} />
-          <directionalLight position={[-10, -10, -5]} intensity={0.4} color="#818cf8" />
-          <pointLight position={[0, 4, 4]} intensity={0.8} />
-          <InteractiveMesh isMobile={isMobile} />
-          <Environment preset="studio" />
-        </Canvas>
-      </div>
+      {/* ─── PERSISTENT 3D GEOMETRIC BACKGROUND ─── */}
+      <Pure3DBackground />
 
-      {/* ─── DYNAMIC OUTLET (RENDERS HOMEPAGE UNTOUCHED) ─── */}
+      {/* ─── NATIVE HOMEPAGE CONTENT INJECTION PORTAL ─── */}
       <div className="relative z-10 w-full min-h-screen pointer-events-auto bg-transparent">
         <Outlet />
       </div>
@@ -168,7 +220,6 @@ function RootLayout() {
   );
 }
 
-// Export the configured route object for TanStack Router compilation
 export const Route = createRootRoute({
   component: RootLayout,
 });
