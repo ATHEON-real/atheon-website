@@ -104,7 +104,7 @@ const Pure3DBackground: React.FC = () => {
 
       // Render nodes
       projectedPoints.forEach((p) => {
-        ctx.fillStyle = \rgba(255, 255, 255, ${p.opacity * 0.6})`;`
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity * 0.6})`;
         ctx.beginPath();
         ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
         ctx.fill();
