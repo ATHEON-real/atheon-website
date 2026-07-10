@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
+    "@react-three/fiber": "^8.16.0",
+    "three": "^0.166.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
