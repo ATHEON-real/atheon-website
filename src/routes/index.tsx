@@ -334,7 +334,7 @@ function Index() {
         align="center"
       >
         <motion.a
-          href="tel:+2349162831373"
+          href="tel:+2349110308721"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.4 }}
@@ -342,7 +342,7 @@ function Index() {
           className="mt-12 inline-flex items-center gap-3 rounded-full bg-neon-pink px-8 py-4 text-sm font-bold uppercase tracking-[0.2em] text-foreground shadow-[0_0_60px_-12px_var(--neon-pink)] transition-transform hover:scale-105"
         >
           <span>Get in touch</span>
-          <span className="text-base">+234 916 283 1373</span>
+          <span className="text-base">+234 911 030 8721</span>
         </motion.a>
       </ScrollSection>
     </div>
